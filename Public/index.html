@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket Chat</title>
+  <link rel="stylesheet" href="style.css"> <!-- Link to the external style sheet -->
+</head>
+<body>
+  <h1>WebSocket Chat</h1>
+  <label>Room:</label>
+  <input type="text" id="room" placeholder="Enter Room Name">
+  <br>
+  <label>Username:</label>
+  <input type="text" id="username" placeholder="Enter Your Username">
+  <br>
+  <button onclick="joinRoom()">Join</button>
+  <br>
+  <div id="chat" class="message-container"></div>
+  <br>
+  <div class="message-input">
+    <input type="text" id="message" placeholder="Type your message">
+    <div id="chat-buttons">
+      <button onclick="sendMessage()">Send</button>
+      <button onclick="clearChat()">Clear</button>
+    </div>
+  </div>
+
+  <script>
+    const roomInput = document.getElementById('room');
+    const usernameInput = document.getElementById('username');
+    const chatTextArea = document.getElementById('chat');
+    const messageInput = document.getElementById('message');
+
+    const socket = new WebSocket('ws://localhost:8080');
+
+    socket.onopen = () => {
+      joinRoom();
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'message') {
+        const message = `<div class="message ${data.sender === usernameInput.value ? 'user-message' : 'other-message'}">
+                           <p class="message-content">${data.content}</p>
+                           <p class="sender">${data.sender}</p>
+                         </div>`;
+        chatTextArea.innerHTML += message;
+      } else if (data.type === 'system') {
+        const message = `<div class="message system-message">
+                           <p class="message-content">${data.content}</p>
+                         </div>`;
+        chatTextArea.innerHTML += message;
+      } else if (data.type === 'file') {
+        // Handling file message
+        const message = `<div class="message file-message ${data.sender === usernameInput.value ? 'user-message' : 'other-message'}">
+                           <p class="sender">${data.sender}</p>
+                           <p class="message-content">${data.content}</p>
+                           <a href="${data.content}" download="${data.filename}" target="_blank">Download File</a>
+                         </div>`;
+        chatTextArea.innerHTML += message;
+      }
+    };
+
+    function joinRoom() {
+      const room = roomInput.value;
+      const username = usernameInput.value;
+
+      const data = {
+        type: 'join',
+        room,
+        username,
+      };
+
+      socket.send(JSON.stringify(data));
+    }
+
+    function sendMessage() {
+      const room = roomInput.value;
+      const content = messageInput.value;
+
+      if (content.trim() !== '') {
+        const data = {
+          type: 'message',
+          room,
+          content,
+        };
+
+        socket.send(JSON.stringify(data));
+        messageInput.value = ''; // Clear the input after sending
+      }
+    }
+
+    function clearChat() {
+      chatTextArea.innerHTML = '';
+    }
+  </script>
+</body>
+</html>
